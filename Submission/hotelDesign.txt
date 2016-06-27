@@ -1,0 +1,212 @@
+Data Structure:
+
+	As suggested we implemented our data structure as a heap.
+	The heap is stored in an array.
+
+	we first made a struct(wakeUps) which can contain a time_t(for an alarmtime) 
+	and an int for a roomNum.
+	
+	We then made a seperate struct(infoArray) which holds a number of integers
+	to keep track of an array. This struct also contained a pointer(*info) 
+	to a wakeUps struct. This is how we were able to make our array.
+
+	The data structure needed several functions to create and maintain a heap. 
+	These were init,resize,swapNodes,insert,getNextTime and removeElement.
+-------------------------------------------------------------------------------------
+	init(infoArray *current) :
+		
+		This function is responsile for initializing the array.
+		We pass a pointer to an infoArray structure, this way we are changing
+		global data. malloc() is used to allocate memory suffecient to
+		hold 10 wakeUps. current->info points to this area in memory, 
+		we can now access each wakeUp in current->info the same way you access 
+		a standard array.
+		e.g. "current->info[0].alarmTime" or "current->info[5].roomNum".
+
+		An integer space is set to 10, this integer tells us how mwakeUps getNextTime(infoArray *current)any wakeUps
+		can be stored in the array.
+
+		An integer entries is initialized to zero as we currently have no entries.
+
+		An integer mulsize is set to two, this will be used later in doubling the
+		array size.
+
+		An integer expired is initialised to 0. This will hold a count of all alarms that
+		have gone off.
+		
+		Using memset we set all the elements of the new array to 0. This isn't necessary 
+		but useful when testing the program.
+-----------------------------------------------------------------------------------------	
+	resize(infoArray *current)
+		
+		This function is responsible for allocating new memory to the array
+		when needed. We pass a pointer to our infoArray to access global data.
+		realloc is used on current->info to allocate more memory to the area of 
+                memory the info pointer points to.
+		
+		The integer mulsize is used to double the size of the array. We double this intger after
+		we finish the resize function. This way whenever resize is called we can double the size
+                of the previous array.
+
+		We double the size of the integer "space". This way we know how many entries our
+                array can insert.
+
+		If our call to realloc fails we end the program with a suitable error message.
+
+		memset() is then used to initialize the new spaces in the array.
+-----------------------------------------------------------------------------------------
+	swapNodes(infoArray *current,int numEntries)
+
+		This function is used to swap a parent with a child in the heap.
+		We provide the location of the parent using "int numEntries".
+		the childs locations is then calculated by using the formula
+		(numentries-1)/2.
+
+		Again we pass a pointer to our infoArray to access global data.
+-------------------------------------------------------------------------------------------
+	insert(infoArray *current,wakeUps newEntry)
+	
+		insert function takes two parameters. The first is a pointer to our global data.
+		The second is the "wakeUp" which we will be inserting into the array.
+		
+		We first check if we have run out of space. if we have we call resize and then continue.
+
+		We then check if the new entry is our first entry. If it is it becomes the root.
+
+		If the new entry is not the first entry then we place it at the end of the array.
+		The new entry then moves its way up the array to an appropriate locations.
+
+		We ensure the new entries alarm time is smaller than its children to find an appropriate
+		location in the array.
+
+		"current->entries" is then increased by one to keep track of the number of entries in the array.
+--------------------------------------------------------------------------------------------------
+	wakeUps getNextTime(infoArray *current)
+		
+		This function returns a wakeUps structure. It retrieves the "wakeUps"
+		that is at the root of the array i.e. loc[0]. It does not however delete 
+		the root. This is done in a seperate method as we are only checking this time to
+		see if its alarmTime has expired.
+--------------------------------------------------------------------------------------------------
+	removeElement(infoArray *current)
+	
+		This method is responsible for removing the root of the array.		
+		
+		Again we pass a pointer to our infoArray struct to access global data.
+
+		The simplest method of removing the root is to swap the root with 
+		the last element in our array. 
+
+		After this swap we subtract 1 from "entries" thereby forgetting about the root.
+
+		The problem then is that the root may not have the highest priority in the queue.
+
+		We check if the roots chilren have a smaller alarmTime. If they do we then check if left
+                or right is smaller. We swap the root with whichever is smaller. This method continues
+		until the node in question finds its appropriate location. It stops moving once 
+                its children have a smaller alarmTime or it has no children.
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+
+Functions for generating and listening for alarm times:
+
+	static void* generate(void *alarmData) :
+		
+		This function will be run by a thread which will be created in main for it.
+		The function is responsible fot generating alarm times and an associated room number.
+		
+		We change the random algorithm using "srand(time(NULL));". Now the current time
+		will be used when generating random numbers and times. This allows our program to have
+		different values each time it is run.
+
+		while(1) is used to keep the thread running until it is cancelled by main.
+
+		The thread waits for the lock, When it gets the lock it generates a random room
+		and alarmTime. This information is then added into a "wakeUps" structure. the "insert"
+		method is then used to place the new information in the heap style data structure.
+
+		If the wakeTime we just inserted is now at the root we inform the waker thread.
+
+		The new information is then printed. 
+		We unlock the mutex to give the other thread a chance to run and put this thread to sleep
+		for up to five seconds.
+
+		This entire process is repeated once it gets the lock again.
+--------------------------------------------------------------------------------------------------------
+	static void* writer(void * alarmData)
+	
+		This function is also run by a thread which is created for it in main.
+		
+		The line below allows us to access our global data by casting a void pointer
+		to an infoArray pointer:
+		infoArray* data = (infoArray *) alarmData;  
+
+		Again we use "while(1)" to keep this thread running.
+
+		The thread waits for the lock. Once it get the lock it 
+		checks if we have any alarm entries using "while(data->entries == 0)" 
+		If we have no entries the thread will signal the generator thread and unlock the mutex
+		using : "pthread_cond_wait(&cond,&mutex);" When this thread is signaled it will again 
+		check if any entries are available because it is in a while loop.
+
+		Once the thread knows it has entries available it uses the "getNextTime" function
+		to get the time which is currently at the root of the heap. 
+
+		We then initialize "timespec time" to the time that was returned from "getNextTime"
+		
+		The below function returns an ETIMEDOUT error if the "time" we pass it has run
+		out.  
+		"error = pthread_cond_timedwait(&cond,&mutex, &time);"
+		If error receives the ETIMEOUT we know the time specified has passed
+		and so we can print the appropriate statement and then remove 
+		that "wakeUps" structure from the heap using the function "removeElement(infoArray *current)"
+		
+		If ETIMEOUT is not returned we simply skip the removing and printing stage and unlock the mutex.
+
+		This process repeats until main ends the program.
+----------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------
+
+Function for cleaning up the threads:
+
+	void destructor(infoArray *current,pthread_t waker,pthread_t generator)
+
+	We pass this function a pointer to our infoArray. We use this pointer to
+	free the memory we allocated to our "wakeUps" array.
+
+	The generator and waker threads are also passed as a parameter. We shut down
+	these threads using pthread_cancel. Appropriate printing statements are used.
+	
+	The threads then join to ensure cancellation using "pthread_join()".
+	
+	"pthread_mutex_destroy(&mutex)" is then called to destroy the mutex.
+
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+
+main()
+
+	Main is responsible for setting up a signal block, initialising an "infoArray" structure,
+	creating a pointer to the "infoArray" structure,declaring two threads, starting the threads
+        (passing appropriate values as parameters), waiting on a SIGINT signal and finally
+	running the "destructor()" function.
+
+	Once the threads have started running main uses "sigwait(&endSig, &sig);". This allows
+	the threads to continue running until main recevies a SIGINT signal i.e. the user
+	presses "control_c". Once control_c is received main continues. It runs the destructor 
+	function and the program ends.
+		
+
+	
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
+

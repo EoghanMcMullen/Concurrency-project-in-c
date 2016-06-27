@@ -1,0 +1,78 @@
+Array as a heap
+--------------
+	Initially our group found it very difficult to implement a heap.
+	We created a working program using a sorted array i.e.
+	an array that would hold values from smallest to biggest.
+	The program worked but we realised that given a huge number
+	of alarmtimes the sorting of this array would be very slow.
+	We then decided to attempt a heap implementation.
+	After spending a bit of time researching heaps
+	we discovered a simple formula for finding a nodes left, right and parent.
+	
+		if parent is at index i
+		left child of parent at index i = 2 * i + 1
+		right child of parent at index i = 2 * i + 2
+		
+		parent of child at index i = (i-1)/2;
+			
+	From the knowledge we gained implementing the sorted array we were able
+	to attempted implementing a heap in an array.
+
+ 
+
+remove function
+---------------
+	This is the function that caused us the most trouble.
+	Removing the root was simple. This is described in
+	hotelDesign.txt.
+ 
+	The trouble we had was sorting the element we placed at the root
+	(i.e. the element that was last in the array) back into an appropriate
+	position. We feel there may be a slight error in the way we coded this
+	function. the alarm times do however still go off at the appropriate
+	time. 
+
+
+Allocating memory
+-----------------
+	Initially we decided that everytime our array ran out of space
+	we would give it ten more positions in memory using realloc.
+	We decided on ten extra spaces each time because we thought
+	we would be saving on using memory we weren't using.
+
+	We realised that for a large number of alarms this meant sacrificing
+	effeciency. If a large number of alarms were inputted then realloc would 
+	constantly be called. We decided then to double the array size each time.
+	This would reduce the number of times the resize function was called.
+	However it also meant that for a large program there would be a lot of memory
+	allocated that might not necessarily be used.
+
+	Once our program allocates memory it has no way of deallocating memory
+	if the number of alarms significantly declines. We feel that in 
+	a program in the real world that this would be a necessary function to include.
+
+global mutex, signal
+-------------------
+	Our team initially had the mutex and condition variables in a structure.
+	After doing some research on where mutexes and conditions could be safely placed
+	we decided to make them global variables. This works well in our program 
+	and is very easy to look at. We found many programs that had these variables as
+	global but we are not sure if this is 100% safe.
+
+Getting same room Numbers and alarmTimes on every run.
+------------------------------------------------------
+	We noticed that when running our program that we were getting the same 
+	values on every run. This was a confusing scenario as we thought our 
+	calls to "rand" would always give us a different number.
+	After some research we found that the rand functions algorithm
+	could be changed by using the current system time. This allowed
+	us to have different numbers on every run of the program.
+
+free memory
+-----------
+	Our team is unsure that we have correctly free'd all the memory we allocated
+	to our array. We carried this out in our "deconstructor" function.
+	We don't think we have to visit each position in the array and set its values
+	to NULL. We would be grateful if you could include an explanation to this
+	in the problems file you usually create. 
+
